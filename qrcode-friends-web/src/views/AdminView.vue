@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { SITE_TITLE } from '@/constants'
 
 const AUTH_KEY = 'adminAuthed'
+const PASSWORD_KEY = 'adminPassword'
 
 const authed = ref(false)
 const password = ref('')
@@ -11,14 +12,26 @@ const loginLoading = ref(false)
 
 const previewUrl = ref('/qrcode.jpg')
 const selectedFile = ref<File | null>(null)
+const selectedPreviewUrl = ref('')
+const fileInputRef = ref<HTMLInputElement | null>(null)
 const uploadError = ref('')
 const uploadSuccess = ref('')
 const uploadLoading = ref(false)
 
 onMounted(async () => {
-  authed.value = sessionStorage.getItem(AUTH_KEY) === 'true'
+  const savedPassword = sessionStorage.getItem(PASSWORD_KEY)
+  authed.value = sessionStorage.getItem(AUTH_KEY) === 'true' && !!savedPassword
+  if (!authed.value) {
+    clearSession()
+  }
   await loadPreview()
 })
+
+function clearSession() {
+  sessionStorage.removeItem(AUTH_KEY)
+  sessionStorage.removeItem(PASSWORD_KEY)
+  authed.value = false
+}
 
 async function loadPreview() {
   try {
@@ -49,6 +62,7 @@ async function handleLogin() {
       return
     }
     sessionStorage.setItem(AUTH_KEY, 'true')
+    sessionStorage.setItem(PASSWORD_KEY, password.value)
     authed.value = true
     password.value = ''
   } catch {
@@ -58,20 +72,49 @@ async function handleLogin() {
   }
 }
 
-function handleFileChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  selectedFile.value = input.files?.[0] ?? null
+function setSelectedFile(file: File | null) {
+  if (selectedPreviewUrl.value) {
+    URL.revokeObjectURL(selectedPreviewUrl.value)
+  }
+  selectedFile.value = file
+  selectedPreviewUrl.value = file ? URL.createObjectURL(file) : ''
   uploadError.value = ''
   uploadSuccess.value = ''
 }
 
+function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  setSelectedFile(input.files?.[0] ?? null)
+}
+
+function handleDrop(event: DragEvent) {
+  const file = event.dataTransfer?.files?.[0]
+  if (file && file.type.startsWith('image/')) {
+    setSelectedFile(file)
+  }
+}
+
+function openFilePicker() {
+  fileInputRef.value?.click()
+}
+
+function clearSelectedFile() {
+  setSelectedFile(null)
+  if (fileInputRef.value) {
+    fileInputRef.value.value = ''
+  }
+}
+
 async function handleUpload() {
-  if (!selectedFile.value) {
-    uploadError.value = '请选择图片'
+  const savedPassword = sessionStorage.getItem(PASSWORD_KEY)
+  if (!savedPassword) {
+    clearSession()
+    uploadError.value = '登录已失效，请重新登录'
     return
   }
-  if (!password.value) {
-    uploadError.value = '请输入密码以确认上传'
+
+  if (!selectedFile.value) {
+    uploadError.value = '请选择图片'
     return
   }
 
@@ -81,7 +124,7 @@ async function handleUpload() {
 
   try {
     const formData = new FormData()
-    formData.append('password', password.value)
+    formData.append('password', savedPassword)
     formData.append('file', selectedFile.value)
 
     const res = await fetch('/api/admin/qr', {
@@ -92,6 +135,9 @@ async function handleUpload() {
     const data = (await res.json().catch(() => ({}))) as { error?: string; url?: string }
     if (!res.ok) {
       uploadError.value = data.error ?? '上传失败'
+      if (res.status === 401) {
+        clearSession()
+      }
       return
     }
 
@@ -101,7 +147,7 @@ async function handleUpload() {
     } else {
       await loadPreview()
     }
-    selectedFile.value = null
+    clearSelectedFile()
   } catch {
     uploadError.value = '网络错误，请重试'
   } finally {
@@ -110,9 +156,9 @@ async function handleUpload() {
 }
 
 function handleLogout() {
-  sessionStorage.removeItem(AUTH_KEY)
-  authed.value = false
+  clearSession()
   password.value = ''
+  clearSelectedFile()
   uploadError.value = ''
   uploadSuccess.value = ''
 }
@@ -134,6 +180,7 @@ function handleLogout() {
           placeholder="请输入密码"
           @keyup.enter="handleLogin"
         />
+        <p class="hint">关闭页面后需重新登录</p>
         <p v-if="loginError" class="error">{{ loginError }}</p>
         <button class="btn primary" :disabled="loginLoading" @click="handleLogin">
           {{ loginLoading ? '登录中...' : '登录' }}
@@ -146,23 +193,43 @@ function handleLogout() {
           <img :src="previewUrl" alt="当前二维码" class="preview-img" />
         </div>
 
-        <label class="label" for="upload-password">确认密码</label>
+        <p class="label">新二维码图片</p>
         <input
-          id="upload-password"
-          v-model="password"
-          type="password"
-          class="input"
-          placeholder="上传前再次输入密码"
+          ref="fileInputRef"
+          type="file"
+          class="file-input-hidden"
+          accept="image/png,image/jpeg,image/jpg"
+          @change="handleFileChange"
         />
 
-        <label class="label" for="qr-file">新二维码图片</label>
-        <input id="qr-file" type="file" accept="image/png,image/jpeg,image/jpg" @change="handleFileChange" />
+        <div
+          class="upload-zone"
+          :class="{ 'has-file': selectedFile }"
+          @click="openFilePicker"
+          @dragover.prevent
+          @drop.prevent="handleDrop"
+        >
+          <template v-if="selectedFile">
+            <img :src="selectedPreviewUrl" alt="已选图片预览" class="upload-preview" />
+            <p class="upload-filename">{{ selectedFile.name }}</p>
+            <button type="button" class="upload-change" @click.stop="openFilePicker">重新选择</button>
+          </template>
+          <template v-else>
+            <div class="upload-icon">+</div>
+            <p class="upload-title">点击或拖拽图片到此处</p>
+            <p class="upload-desc">支持 JPG、PNG，最大 2MB</p>
+          </template>
+        </div>
 
         <p v-if="uploadError" class="error">{{ uploadError }}</p>
         <p v-if="uploadSuccess" class="success">{{ uploadSuccess }}</p>
 
         <div class="actions">
-          <button class="btn primary" :disabled="uploadLoading" @click="handleUpload">
+          <button
+            class="btn primary"
+            :disabled="uploadLoading || !selectedFile"
+            @click="handleUpload"
+          >
             {{ uploadLoading ? '上传中...' : '上传替换' }}
           </button>
           <button class="btn" @click="handleLogout">退出登录</button>
@@ -206,6 +273,13 @@ h1 {
   margin-bottom: 8px;
   font-size: 14px;
   color: #333;
+  font-weight: 500;
+}
+
+.hint {
+  margin: -8px 0 16px;
+  font-size: 12px;
+  color: #999;
 }
 
 .input {
@@ -229,6 +303,81 @@ h1 {
   border: 1px solid #eee;
   border-radius: 8px;
   display: block;
+  background: #fafafa;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+.upload-zone {
+  border: 2px dashed #d9d9d9;
+  border-radius: 12px;
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  background: #fafafa;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 16px;
+}
+
+.upload-zone:hover {
+  border-color: #07c160;
+  background: #f6ffed;
+}
+
+.upload-zone.has-file {
+  padding: 16px;
+}
+
+.upload-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: #e8f8ef;
+  color: #07c160;
+  font-size: 28px;
+  line-height: 48px;
+  font-weight: 300;
+}
+
+.upload-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #333;
+}
+
+.upload-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #999;
+}
+
+.upload-preview {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #eee;
+  margin-bottom: 8px;
+}
+
+.upload-filename {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #666;
+  word-break: break-all;
+}
+
+.upload-change {
+  border: none;
+  background: none;
+  color: #07c160;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
 }
 
 .actions {
