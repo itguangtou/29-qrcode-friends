@@ -2,22 +2,20 @@
 import { onMounted, ref } from 'vue'
 import { SITE_TITLE } from '@/constants'
 import { compressImage, formatFileSize } from '@/utils/compressImage'
+import { message } from '@/utils/message'
 
 const AUTH_KEY = 'adminAuthed'
 const PASSWORD_KEY = 'adminPassword'
 
 const authed = ref(false)
 const password = ref('')
-const loginError = ref('')
 const loginLoading = ref(false)
 
-const previewUrl = ref('/qrcode.jpg')
+const previewUrl = ref<string | null>(null)
 const previewKey = ref(0)
 const selectedFile = ref<File | null>(null)
 const selectedPreviewUrl = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
-const uploadError = ref('')
-const uploadSuccess = ref('')
 const uploadLoading = ref(false)
 const compressing = ref(false)
 const compressedSizeLabel = ref('')
@@ -49,32 +47,29 @@ function refreshPreview(url: string) {
 
 async function loadPreview() {
   try {
-    const res = await fetch(`/api/qr?t=${Date.now()}`)
+    const res = await fetch(`/api/qr?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' },
+    })
     if (res.ok) {
-      const data = (await res.json()) as { url: string }
+      const data = (await res.json()) as { url: string | null }
       if (data.url) {
         refreshPreview(data.url)
+      } else {
+        previewUrl.value = null
       }
     }
   } catch {
-    // ignore
+    previewUrl.value = null
   }
-}
-
-let successTimer: ReturnType<typeof setTimeout> | null = null
-
-function showSuccess(message: string) {
-  uploadSuccess.value = message
-  if (successTimer) {
-    clearTimeout(successTimer)
-  }
-  successTimer = setTimeout(() => {
-    uploadSuccess.value = ''
-  }, 3000)
 }
 
 async function handleLogin() {
-  loginError.value = ''
+  if (!password.value.trim()) {
+    message.warning('请输入管理密码')
+    return
+  }
+
   loginLoading.value = true
   try {
     const res = await fetch('/api/admin/login', {
@@ -84,15 +79,17 @@ async function handleLogin() {
     })
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string }
-      loginError.value = data.error ?? '登录失败'
+      message.error(data.error ?? '密码错误，登录失败')
       return
     }
     sessionStorage.setItem(AUTH_KEY, 'true')
     sessionStorage.setItem(PASSWORD_KEY, password.value)
     authed.value = true
     password.value = ''
+    message.success('登录成功')
+    await loadPreview()
   } catch {
-    loginError.value = '网络错误，请重试'
+    message.error('网络连接异常，请重试')
   } finally {
     loginLoading.value = false
   }
@@ -105,18 +102,15 @@ function setSelectedFile(file: File | null, sizeLabel = '') {
   selectedFile.value = file
   selectedPreviewUrl.value = file ? URL.createObjectURL(file) : ''
   compressedSizeLabel.value = sizeLabel
-  uploadError.value = ''
-  uploadSuccess.value = ''
 }
 
 async function processSelectedFile(file: File) {
   compressing.value = true
-  uploadError.value = ''
   try {
     const compressed = await compressImage(file)
     setSelectedFile(compressed, `压缩后 ${formatFileSize(compressed.size)}`)
   } catch {
-    uploadError.value = '图片处理失败，请换一张图片重试'
+    message.error('图片处理失败，请换一张图片重试')
     clearSelectedFile()
   } finally {
     compressing.value = false
@@ -153,17 +147,15 @@ async function handleUpload() {
   const savedPassword = sessionStorage.getItem(PASSWORD_KEY)
   if (!savedPassword) {
     clearSession()
-    uploadError.value = '登录已失效，请重新登录'
+    message.error('登录已失效，请重新登录')
     return
   }
 
   if (!selectedFile.value) {
-    uploadError.value = '请选择图片'
+    message.warning('请先选择二维码图片')
     return
   }
 
-  uploadError.value = ''
-  uploadSuccess.value = ''
   uploadLoading.value = true
 
   try {
@@ -174,18 +166,19 @@ async function handleUpload() {
     const res = await fetch('/api/admin/qr', {
       method: 'PUT',
       body: formData,
+      headers: { 'Cache-Control': 'no-cache' },
     })
 
     const data = (await res.json().catch(() => ({}))) as { error?: string; url?: string }
     if (!res.ok) {
-      uploadError.value = data.error ?? '上传失败'
+      message.error(data.error ?? '上传失败')
       if (res.status === 401) {
         clearSession()
       }
       return
     }
 
-    showSuccess('上传成功，当前二维码已更新')
+    message.success('二维码上传成功，页面已更新！')
     clearSelectedFile()
 
     if (data.url) {
@@ -194,7 +187,7 @@ async function handleUpload() {
       await loadPreview()
     }
   } catch {
-    uploadError.value = '网络错误，请重试'
+    message.error('网络请求失败，请检查网络后重试')
   } finally {
     uploadLoading.value = false
   }
@@ -204,8 +197,7 @@ function handleLogout() {
   clearSession()
   password.value = ''
   clearSelectedFile()
-  uploadError.value = ''
-  uploadSuccess.value = ''
+  message.info('已退出登录')
 }
 </script>
 
@@ -228,7 +220,6 @@ function handleLogout() {
           @keyup.enter="handleLogin"
         />
         <p class="hint">关闭页面后需重新登录</p>
-        <p v-if="loginError" class="error error-center">{{ loginError }}</p>
         <div class="form-actions">
           <button class="btn primary" :disabled="loginLoading" @click="handleLogin">
             {{ loginLoading ? '登录中...' : '登录' }}
@@ -237,11 +228,21 @@ function handleLogout() {
       </template>
 
       <template v-else>
-        <div v-if="uploadSuccess" class="toast">{{ uploadSuccess }}</div>
-
         <div class="preview">
           <p class="label">当前二维码</p>
-          <img :key="previewKey" :src="previewUrl" alt="当前二维码" class="preview-img" />
+          <div class="preview-box">
+            <img
+              v-if="previewUrl"
+              :key="previewKey"
+              :src="previewUrl"
+              alt="当前二维码"
+              class="preview-img"
+            />
+            <div v-else class="preview-empty">
+              <span class="empty-icon">📭</span>
+              <p>暂未上传任何二维码</p>
+            </div>
+          </div>
         </div>
 
         <p class="label">新二维码图片</p>
@@ -274,8 +275,6 @@ function handleLogout() {
             <p class="upload-desc">支持 JPG、PNG，上传前自动压缩为轻量图</p>
           </template>
         </div>
-
-        <p v-if="uploadError" class="error">{{ uploadError }}</p>
 
         <div class="actions">
           <button
@@ -354,14 +353,39 @@ h1 {
   margin-bottom: 20px;
 }
 
-.preview-img {
+.preview-box {
   width: 200px;
   height: 200px;
-  object-fit: contain;
   border: 1px solid #eee;
   border-radius: 8px;
-  display: block;
   background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.preview-empty {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+}
+
+.preview-empty .empty-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.preview-empty p {
+  margin: 0;
 }
 
 .file-input-hidden {
@@ -469,44 +493,5 @@ h1 {
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.error {
-  color: #e53935;
-  font-size: 13px;
-  margin: 0 0 12px;
-}
-
-.error-center {
-  text-align: center;
-}
-
-.success {
-  color: #07c160;
-  font-size: 13px;
-  margin: 0 0 12px;
-}
-
-.toast {
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: #e8f8ef;
-  border: 1px solid #b7eb8f;
-  color: #389e0d;
-  font-size: 14px;
-  text-align: center;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 </style>

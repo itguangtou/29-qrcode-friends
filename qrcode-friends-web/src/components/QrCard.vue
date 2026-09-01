@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import WechatIcon from './WechatIcon.vue'
 
-defineProps<{
+interface Props {
   title: string
-  qrImageUrl: string
+  qrImageUrl: string | null
   loading?: boolean
-}>()
+}
+
+defineProps<Props>()
 </script>
 
 <template>
@@ -17,7 +19,12 @@ defineProps<{
       </div>
       <div class="qr-wrapper">
         <div v-if="loading" class="qr-placeholder">加载中...</div>
-        <img v-else :src="qrImageUrl" alt="微信群二维码" class="qr-image" />
+        <img v-else-if="qrImageUrl" :src="qrImageUrl" alt="微信群二维码" class="qr-image" />
+        <div v-else class="qr-empty">
+          <div class="empty-icon">📭</div>
+          <p class="empty-text">暂未上传二维码</p>
+          <p class="empty-sub">请在管理后台上传最新的微信群二维码</p>
+        </div>
       </div>
     </div>
   </div>
@@ -77,5 +84,28 @@ defineProps<{
 .qr-placeholder {
   color: #999;
   font-size: 14px;
+}
+
+.qr-empty {
+  text-align: center;
+  padding: 20px;
+}
+
+.empty-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.empty-text {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+}
+
+.empty-sub {
+  margin: 0;
+  font-size: 12px;
+  color: #999;
 }
 </style>
