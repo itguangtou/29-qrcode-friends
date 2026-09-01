@@ -1,13 +1,9 @@
-import { head } from '@vercel/blob'
-
-const QR_PATH = 'qrcode/current.jpg'
+import { getCurrentQrUrl } from './lib/qr-blob'
 
 export async function GET() {
-  try {
-    const blob = await head(QR_PATH)
-    return Response.json({ url: `${blob.url}?v=${Date.now()}` })
-  } catch {
-    // Blob 无图时回退到仓库内默认静态图
+  const url = await getCurrentQrUrl()
+  if (url) {
+    return Response.json({ url })
   }
 
   return Response.json({ url: '/qrcode.jpg' })

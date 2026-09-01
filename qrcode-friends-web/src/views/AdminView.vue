@@ -185,10 +185,6 @@ async function handleUpload() {
       return
     }
 
-    if (selectedPreviewUrl.value) {
-      refreshPreview(selectedPreviewUrl.value)
-    }
-
     showSuccess('上传成功，当前二维码已更新')
     clearSelectedFile()
 
