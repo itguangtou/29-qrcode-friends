@@ -11,6 +11,7 @@ const loginError = ref('')
 const loginLoading = ref(false)
 
 const previewUrl = ref('/qrcode.jpg')
+const previewKey = ref(0)
 const selectedFile = ref<File | null>(null)
 const selectedPreviewUrl = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -33,18 +34,40 @@ function clearSession() {
   authed.value = false
 }
 
+function withCacheBuster(url: string) {
+  const base = url.split('?')[0] ?? url
+  return `${base}?t=${Date.now()}`
+}
+
+function refreshPreview(url: string) {
+  previewUrl.value = withCacheBuster(url)
+  previewKey.value += 1
+}
+
 async function loadPreview() {
   try {
-    const res = await fetch('/api/qr')
+    const res = await fetch(`/api/qr?t=${Date.now()}`)
     if (res.ok) {
       const data = (await res.json()) as { url: string }
       if (data.url) {
-        previewUrl.value = data.url
+        refreshPreview(data.url)
       }
     }
   } catch {
     // ignore
   }
+}
+
+let successTimer: ReturnType<typeof setTimeout> | null = null
+
+function showSuccess(message: string) {
+  uploadSuccess.value = message
+  if (successTimer) {
+    clearTimeout(successTimer)
+  }
+  successTimer = setTimeout(() => {
+    uploadSuccess.value = ''
+  }, 3000)
 }
 
 async function handleLogin() {
@@ -141,13 +164,18 @@ async function handleUpload() {
       return
     }
 
-    uploadSuccess.value = '上传成功'
+    if (selectedPreviewUrl.value) {
+      refreshPreview(selectedPreviewUrl.value)
+    }
+
+    showSuccess('上传成功，当前二维码已更新')
+    clearSelectedFile()
+
     if (data.url) {
-      previewUrl.value = data.url
+      refreshPreview(data.url)
     } else {
       await loadPreview()
     }
-    clearSelectedFile()
   } catch {
     uploadError.value = '网络错误，请重试'
   } finally {
@@ -188,9 +216,11 @@ function handleLogout() {
       </template>
 
       <template v-else>
+        <div v-if="uploadSuccess" class="toast">{{ uploadSuccess }}</div>
+
         <div class="preview">
           <p class="label">当前二维码</p>
-          <img :src="previewUrl" alt="当前二维码" class="preview-img" />
+          <img :key="previewKey" :src="previewUrl" alt="当前二维码" class="preview-img" />
         </div>
 
         <p class="label">新二维码图片</p>
@@ -222,7 +252,6 @@ function handleLogout() {
         </div>
 
         <p v-if="uploadError" class="error">{{ uploadError }}</p>
-        <p v-if="uploadSuccess" class="success">{{ uploadSuccess }}</p>
 
         <div class="actions">
           <button
@@ -416,5 +445,28 @@ h1 {
   color: #07c160;
   font-size: 13px;
   margin: 0 0 12px;
+}
+
+.toast {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #e8f8ef;
+  border: 1px solid #b7eb8f;
+  color: #389e0d;
+  font-size: 14px;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
