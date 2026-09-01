@@ -1,1 +1,1 @@
-export const SITE_TITLE = '老卫今日作业'
+export const SITE_TITLE = '老尚今日作业'
