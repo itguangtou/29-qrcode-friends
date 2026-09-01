@@ -7,13 +7,28 @@
 | 项目 | 状态 |
 |------|------|
 | GitHub 仓库 | https://github.com/itguangtou/29-qrcode-friends |
-| GitHub CLI (`gh`) | 已登录 `itguangtou` |
-| Vercel CLI | 未安装（可选） |
-| Vercel 项目 | 待创建 |
+| Vercel 项目 | 已部署（Root Directory = `qrcode-friends-web`） |
+| 管理端 | 代码已就绪，需在 Vercel 配置 Blob + 密码，见 [admin.md](admin.md) |
 
 ---
 
-## 方式一：你在 Vercel 网页操作（推荐，5 分钟）
+## 静态版上线（已完成）
+
+若只需展示固定二维码、不用管理端，部署时**无需** Blob 和环境变量。二维码来自 `public/qrcode.jpg`（GitHub）。
+
+---
+
+## 启用管理端
+
+详见 **[doc/plan/admin.md](admin.md)**，核心三步：
+
+1. Vercel **Storage** 创建 Blob Store
+2. 设置 `ADMIN_PASSWORD` 环境变量
+3. **Redeploy** 一次
+
+---
+
+## 首次部署（参考）
 
 ### 第 1 步：导入 GitHub 仓库
 

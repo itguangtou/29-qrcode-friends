@@ -5,11 +5,25 @@ const MAX_SIZE = 2 * 1024 * 1024
 
 export async function PUT(request: Request) {
   try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return Response.json(
+        { error: '存储未配置，请在 Vercel 创建 Blob Store 并连接项目后重新部署' },
+        { status: 503 },
+      )
+    }
+
+    if (!process.env.ADMIN_PASSWORD) {
+      return Response.json(
+        { error: '管理端未配置，请在 Vercel 设置 ADMIN_PASSWORD 环境变量后重新部署' },
+        { status: 503 },
+      )
+    }
+
     const formData = await request.formData()
     const password = formData.get('password')
     const file = formData.get('file')
 
-    if (!process.env.ADMIN_PASSWORD || password !== process.env.ADMIN_PASSWORD) {
+    if (password !== process.env.ADMIN_PASSWORD) {
       return Response.json({ error: '未授权' }, { status: 401 })
     }
 
@@ -32,7 +46,8 @@ export async function PUT(request: Request) {
     })
 
     return Response.json({ ok: true, url: `${blob.url}?v=${Date.now()}` })
-  } catch {
-    return Response.json({ error: '上传失败' }, { status: 500 })
+  } catch (err) {
+    console.error('Upload failed:', err)
+    return Response.json({ error: '上传失败，请检查 Blob 存储配置' }, { status: 500 })
   }
 }

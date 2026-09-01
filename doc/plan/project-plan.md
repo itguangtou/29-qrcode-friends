@@ -30,3 +30,7 @@
 ## 改标题
 
 修改 `src/constants.ts` 中的 `SITE_TITLE`，重新部署即可。
+
+## 启用管理端
+
+详见 [doc/plan/admin.md](../plan/admin.md)。
