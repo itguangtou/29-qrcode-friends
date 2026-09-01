@@ -1,7 +1,20 @@
-import { put } from '@vercel/blob'
+import { del, list, put } from '@vercel/blob'
 
+const QR_PREFIX = 'qrcode/'
 const QR_PATH = 'qrcode/current.jpg'
 const MAX_SIZE = 512 * 1024
+
+/** 删除 Blob 中 qrcode/ 下全部文件，保证只保留一张 */
+async function clearQrBlobs() {
+  let cursor: string | undefined
+  do {
+    const result = await list({ prefix: QR_PREFIX, cursor })
+    if (result.blobs.length > 0) {
+      await del(result.blobs.map((b) => b.url))
+    }
+    cursor = result.hasMore ? result.cursor : undefined
+  } while (cursor)
+}
 
 export async function PUT(request: Request) {
   try {
@@ -38,6 +51,8 @@ export async function PUT(request: Request) {
     if (file.size > MAX_SIZE) {
       return Response.json({ error: '压缩后图片仍然过大，请换一张更小的图片' }, { status: 400 })
     }
+
+    await clearQrBlobs()
 
     const blob = await put(QR_PATH, file, {
       access: 'public',
