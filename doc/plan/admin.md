@@ -7,7 +7,7 @@
 | 存储 | 位置 | 说明 |
 |------|------|------|
 | **GitHub** | `qrcode-friends-web/public/qrcode.jpg` | 构建时打包，Blob 无图时的默认回退 |
-| **Vercel Blob** | `qrcode/current.jpg` | 管理端上传后的正式存储；每次上传会先删掉旧图，始终只保留一张 |
+| **Vercel Blob** | `qrcode/current.png` | 管理端上传后的正式存储，不在 GitHub |
 
 - 现在首页显示的图 → 来自 GitHub 静态文件
 - 管理端上传换图后 → 存在 Vercel Blob，**无需 git push**

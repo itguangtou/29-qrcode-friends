@@ -9,26 +9,12 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { del, list, put } from '@vercel/blob'
+import { put } from '@vercel/blob'
 
-const QR_PREFIX = 'qrcode/'
 const QR_PATH = 'qrcode/current.jpg'
-const QR_CACHE_MAX_AGE = 60
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const imagePath = join(root, 'doc/image/3f8133d6-c00e-4ade-a85a-4a86f8a578c4.jpg')
-
-async function cleanupOtherQrBlobs(keepPathname) {
-  let cursor
-  do {
-    const result = await list({ prefix: QR_PREFIX, cursor })
-    const orphans = result.blobs.filter((blob) => blob.pathname !== keepPathname)
-    if (orphans.length > 0) {
-      await del(orphans.map((blob) => blob.url))
-    }
-    cursor = result.hasMore ? result.cursor : undefined
-  } while (cursor)
-}
 
 async function main() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -39,16 +25,9 @@ async function main() {
   const buffer = readFileSync(imagePath)
   const blob = await put(QR_PATH, buffer, {
     access: 'public',
-    allowOverwrite: true,
+    addRandomSuffix: false,
     contentType: 'image/jpeg',
-    cacheControlMaxAge: QR_CACHE_MAX_AGE,
   })
-
-  try {
-    await cleanupOtherQrBlobs(QR_PATH)
-  } catch (err) {
-    console.warn('QR orphan cleanup failed:', err)
-  }
 
   console.log('上传成功:', blob.url)
 }

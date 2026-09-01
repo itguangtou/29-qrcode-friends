@@ -1,5 +1,6 @@
-import { uploadQrBlob, withCacheBuster } from '../lib/qr-blob'
+import { put } from '@vercel/blob'
 
+const QR_PATH = 'qrcode/current.jpg'
 const MAX_SIZE = 512 * 1024
 
 export async function PUT(request: Request) {
@@ -38,11 +39,15 @@ export async function PUT(request: Request) {
       return Response.json({ error: '压缩后图片仍然过大，请换一张更小的图片' }, { status: 400 })
     }
 
-    const blob = await uploadQrBlob(file)
+    const blob = await put(QR_PATH, file, {
+      access: 'public',
+      addRandomSuffix: false,
+      contentType: 'image/jpeg',
+    })
 
-    return Response.json({ ok: true, url: withCacheBuster(blob.url) })
+    return Response.json({ ok: true, url: `${blob.url}?v=${Date.now()}` })
   } catch (err) {
     console.error('Upload failed:', err)
-    return Response.json({ error: '上传失败，请稍后重试' }, { status: 500 })
+    return Response.json({ error: '上传失败，请检查 Blob 存储配置' }, { status: 500 })
   }
 }
