@@ -1,6 +1,5 @@
-import { put } from '@vercel/blob'
+import { put, list, del } from '@vercel/blob'
 
-const QR_PATH = 'qrcode/current.jpg'
 const MAX_SIZE = 512 * 1024
 
 const NO_CACHE_HEADERS = {
@@ -48,15 +47,27 @@ export async function PUT(request: Request) {
       )
     }
 
-    const blob = await put(QR_PATH, file, {
+    // 每次上传生成带时间戳的全新唯一路径，彻底绕过 CDN 缓存
+    const newPath = `qrcode/qr-${Date.now()}.jpg`
+    const blob = await put(newPath, file, {
       access: 'public',
-      addRandomSuffix: false,
+      addRandomSuffix: true,
       contentType: 'image/jpeg',
-      cacheControlMaxAge: 0,
     })
 
+    // 异步清理所有旧图，保持 Blob 存储中只保留最新一张
+    try {
+      const { blobs } = await list({ prefix: 'qrcode/' })
+      const oldBlobs = blobs.filter((b) => b.url !== blob.url)
+      if (oldBlobs.length > 0) {
+        await del(oldBlobs.map((b) => b.url))
+      }
+    } catch (cleanupErr) {
+      console.warn('Failed to cleanup old blobs:', cleanupErr)
+    }
+
     return Response.json(
-      { ok: true, url: `${blob.url}?v=${Date.now()}` },
+      { ok: true, url: blob.url },
       { headers: NO_CACHE_HEADERS },
     )
   } catch (err) {
