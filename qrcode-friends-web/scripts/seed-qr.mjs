@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { put } from '@vercel/blob'
 
-const QR_PATH = 'qrcode/current.png'
+const QR_PATH = 'qrcode/current.jpg'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const imagePath = join(root, 'doc/image/3f8133d6-c00e-4ade-a85a-4a86f8a578c4.jpg')

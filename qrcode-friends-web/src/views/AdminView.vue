@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { SITE_TITLE } from '@/constants'
+import { compressImage, formatFileSize } from '@/utils/compressImage'
 
 const AUTH_KEY = 'adminAuthed'
 const PASSWORD_KEY = 'adminPassword'
@@ -18,6 +19,8 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 const uploadError = ref('')
 const uploadSuccess = ref('')
 const uploadLoading = ref(false)
+const compressing = ref(false)
+const compressedSizeLabel = ref('')
 
 onMounted(async () => {
   const savedPassword = sessionStorage.getItem(PASSWORD_KEY)
@@ -95,25 +98,43 @@ async function handleLogin() {
   }
 }
 
-function setSelectedFile(file: File | null) {
+function setSelectedFile(file: File | null, sizeLabel = '') {
   if (selectedPreviewUrl.value) {
     URL.revokeObjectURL(selectedPreviewUrl.value)
   }
   selectedFile.value = file
   selectedPreviewUrl.value = file ? URL.createObjectURL(file) : ''
+  compressedSizeLabel.value = sizeLabel
   uploadError.value = ''
   uploadSuccess.value = ''
 }
 
+async function processSelectedFile(file: File) {
+  compressing.value = true
+  uploadError.value = ''
+  try {
+    const compressed = await compressImage(file)
+    setSelectedFile(compressed, `压缩后 ${formatFileSize(compressed.size)}`)
+  } catch {
+    uploadError.value = '图片处理失败，请换一张图片重试'
+    clearSelectedFile()
+  } finally {
+    compressing.value = false
+  }
+}
+
 function handleFileChange(event: Event) {
   const input = event.target as HTMLInputElement
-  setSelectedFile(input.files?.[0] ?? null)
+  const file = input.files?.[0]
+  if (file) {
+    void processSelectedFile(file)
+  }
 }
 
 function handleDrop(event: DragEvent) {
   const file = event.dataTransfer?.files?.[0]
   if (file && file.type.startsWith('image/')) {
-    setSelectedFile(file)
+    void processSelectedFile(file)
   }
 }
 
@@ -195,8 +216,10 @@ function handleLogout() {
 <template>
   <div class="admin-page">
     <div class="admin-card">
-      <h1>管理后台</h1>
-      <p class="subtitle">{{ SITE_TITLE }}</p>
+      <div class="card-header">
+        <h1>管理后台</h1>
+        <p class="subtitle">{{ SITE_TITLE }}</p>
+      </div>
 
       <template v-if="!authed">
         <label class="label" for="login-password">管理密码</label>
@@ -209,10 +232,12 @@ function handleLogout() {
           @keyup.enter="handleLogin"
         />
         <p class="hint">关闭页面后需重新登录</p>
-        <p v-if="loginError" class="error">{{ loginError }}</p>
-        <button class="btn primary" :disabled="loginLoading" @click="handleLogin">
-          {{ loginLoading ? '登录中...' : '登录' }}
-        </button>
+        <p v-if="loginError" class="error error-center">{{ loginError }}</p>
+        <div class="form-actions">
+          <button class="btn primary" :disabled="loginLoading" @click="handleLogin">
+            {{ loginLoading ? '登录中...' : '登录' }}
+          </button>
+        </div>
       </template>
 
       <template v-else>
@@ -239,15 +264,18 @@ function handleLogout() {
           @dragover.prevent
           @drop.prevent="handleDrop"
         >
-          <template v-if="selectedFile">
+          <template v-if="compressing">
+            <p class="upload-title">正在压缩图片...</p>
+          </template>
+          <template v-else-if="selectedFile">
             <img :src="selectedPreviewUrl" alt="已选图片预览" class="upload-preview" />
-            <p class="upload-filename">{{ selectedFile.name }}</p>
+            <p class="upload-filename">{{ compressedSizeLabel || '已压缩，准备上传' }}</p>
             <button type="button" class="upload-change" @click.stop="openFilePicker">重新选择</button>
           </template>
           <template v-else>
             <div class="upload-icon">+</div>
             <p class="upload-title">点击或拖拽图片到此处</p>
-            <p class="upload-desc">支持 JPG、PNG，最大 2MB</p>
+            <p class="upload-desc">支持 JPG、PNG，上传前自动压缩为轻量图</p>
           </template>
         </div>
 
@@ -256,10 +284,10 @@ function handleLogout() {
         <div class="actions">
           <button
             class="btn primary"
-            :disabled="uploadLoading || !selectedFile"
+            :disabled="uploadLoading || compressing || !selectedFile"
             @click="handleUpload"
           >
-            {{ uploadLoading ? '上传中...' : '上传替换' }}
+            {{ uploadLoading ? '上传中...' : compressing ? '压缩中...' : '上传替换' }}
           </button>
           <button class="btn" @click="handleLogout">退出登录</button>
         </div>
@@ -286,13 +314,18 @@ function handleLogout() {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
 
+.card-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
 h1 {
   margin: 0 0 4px;
   font-size: 22px;
 }
 
 .subtitle {
-  margin: 0 0 24px;
+  margin: 0;
   color: #666;
   font-size: 14px;
 }
@@ -409,19 +442,26 @@ h1 {
   padding: 0;
 }
 
+.form-actions,
 .actions {
   display: flex;
+  justify-content: center;
   gap: 12px;
   margin-top: 8px;
 }
 
+.form-actions .btn,
+.actions .btn {
+  min-width: 140px;
+  padding: 12px 24px;
+  font-size: 15px;
+}
+
 .btn {
-  padding: 10px 16px;
   border: 1px solid #ddd;
   border-radius: 8px;
   background: #fff;
   cursor: pointer;
-  font-size: 14px;
 }
 
 .btn.primary {
@@ -439,6 +479,10 @@ h1 {
   color: #e53935;
   font-size: 13px;
   margin: 0 0 12px;
+}
+
+.error-center {
+  text-align: center;
 }
 
 .success {

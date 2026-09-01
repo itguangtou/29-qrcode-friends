@@ -1,7 +1,7 @@
 import { put } from '@vercel/blob'
 
-const QR_PATH = 'qrcode/current.png'
-const MAX_SIZE = 2 * 1024 * 1024
+const QR_PATH = 'qrcode/current.jpg'
+const MAX_SIZE = 512 * 1024
 
 export async function PUT(request: Request) {
   try {
@@ -36,13 +36,13 @@ export async function PUT(request: Request) {
     }
 
     if (file.size > MAX_SIZE) {
-      return Response.json({ error: '图片不能超过 2MB' }, { status: 400 })
+      return Response.json({ error: '压缩后图片仍然过大，请换一张更小的图片' }, { status: 400 })
     }
 
     const blob = await put(QR_PATH, file, {
       access: 'public',
       addRandomSuffix: false,
-      contentType: file.type,
+      contentType: 'image/jpeg',
     })
 
     return Response.json({ ok: true, url: `${blob.url}?v=${Date.now()}` })
