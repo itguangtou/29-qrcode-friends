@@ -6,7 +6,7 @@
 
 ## 架构
 
-- **前端**：Vue 3 + Vite（`qrcode-friends/`）
+- **前端**：Vue 3 + Vite（`qrcode-friends-web/`）
 - **存储**：Vercel Blob，固定路径 `qrcode/current.png`
 - **鉴权**：环境变量 `ADMIN_PASSWORD`
 - **API**：Vercel Serverless Functions（`api/` 目录）

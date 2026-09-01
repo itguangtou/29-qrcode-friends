@@ -27,7 +27,7 @@
 
 | 配置项 | 值 |
 |--------|-----|
-| **Root Directory** | `qrcode-friends`（重要！代码在子目录） |
+| **Root Directory** | `qrcode-friends-web`（重要！代码在子目录） |
 | **Framework Preset** | Vite（通常自动识别） |
 | **Build Command** | `pnpm build` |
 | **Output Directory** | `dist` |
@@ -64,7 +64,7 @@
 **方式 B（上传到 Blob，便于后续管理端替换）**：部署完成后在本地运行：
 
 ```bash
-cd qrcode-friends
+cd qrcode-friends-web
 # 从 Vercel 项目 Settings → Environment Variables 复制 BLOB_READ_WRITE_TOKEN
 pnpm seed
 ```
@@ -99,8 +99,8 @@ pnpm add -g vercel
 # 使用 token 登录（非交互）
 vercel login --token <你的TOKEN>
 
-# 在 qrcode-friends 目录关联并部署
-cd qrcode-friends
+# 在 qrcode-friends-web 目录关联并部署
+cd qrcode-friends-web
 vercel link --yes
 vercel env add ADMIN_PASSWORD production
 vercel --prod
@@ -136,20 +136,20 @@ Blob Store 目前仍需在 Vercel 网页 **Storage** 中创建一次（CLI 对 B
 
 ### API 404
 
-- 确认 Root Directory 设为 `qrcode-friends`（`api/` 目录在此下）
+- 确认 Root Directory 设为 `qrcode-friends-web`（`api/` 目录在此下）
 - 确认 `vercel.json` 已提交到仓库
 
 ### 本地开发看不到 API
 
 - `pnpm dev` 只启动 Vite 前端，不含 Serverless API
-- 本地测试 API 需安装 Vercel CLI 后运行：`vercel dev`（在 `qrcode-friends` 目录）
+- 本地测试 API 需安装 Vercel CLI 后运行：`vercel dev`（在 `qrcode-friends-web` 目录）
 
 ---
 
 ## 检查清单
 
 - [ ] GitHub 代码已 push
-- [ ] Vercel 导入仓库，Root Directory = `qrcode-friends`
+- [ ] Vercel 导入仓库，Root Directory = `qrcode-friends-web`
 - [ ] 创建 Blob Store 并连接项目
 - [ ] 设置 `ADMIN_PASSWORD`
 - [ ] 首次部署成功

@@ -2,7 +2,7 @@
  * 将 doc/image 下的二维码上传到 Vercel Blob（首次部署后运行一次）
  *
  * 用法：
- *   cd qrcode-friends
+ *   cd qrcode-friends-web
  *   $env:BLOB_READ_WRITE_TOKEN="你的token"
  *   pnpm seed
  */
