@@ -3,7 +3,7 @@ import { onMounted, ref } from 'vue'
 import QrCard from '@/components/QrCard.vue'
 import { SITE_TITLE } from '@/constants'
 
-const qrImageUrl = ref('/default-qr.svg')
+const qrImageUrl = ref('/qrcode.jpg')
 const loading = ref(true)
 
 onMounted(async () => {

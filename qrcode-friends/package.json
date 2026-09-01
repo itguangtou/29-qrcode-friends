@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "seed": "node scripts/seed-qr.mjs"
   },
   "dependencies": {
     "@vercel/blob": "^0.27.3",

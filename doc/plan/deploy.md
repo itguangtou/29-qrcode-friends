@@ -59,10 +59,17 @@
 
 ### 第 6 步：上传第一张二维码
 
-1. 打开 `/admin`
-2. 输入 `ADMIN_PASSWORD` 登录
-3. 上传微信群二维码图片
-4. 回到首页刷新验证
+**方式 A（推荐，已内置图片）**：项目已将 `doc/image/` 下的微信二维码复制到 `public/qrcode.jpg`，部署后首页会直接显示，无需额外操作。
+
+**方式 B（上传到 Blob，便于后续管理端替换）**：部署完成后在本地运行：
+
+```bash
+cd qrcode-friends
+# 从 Vercel 项目 Settings → Environment Variables 复制 BLOB_READ_WRITE_TOKEN
+pnpm seed
+```
+
+**方式 C**：打开 `/admin` 登录后手动上传。
 
 ---
 

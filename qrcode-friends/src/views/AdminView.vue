@@ -9,7 +9,7 @@ const password = ref('')
 const loginError = ref('')
 const loginLoading = ref(false)
 
-const previewUrl = ref('/default-qr.svg')
+const previewUrl = ref('/qrcode.jpg')
 const selectedFile = ref<File | null>(null)
 const uploadError = ref('')
 const uploadSuccess = ref('')

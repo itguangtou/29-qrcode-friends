@@ -7,6 +7,6 @@ export async function GET() {
     const blob = await head(QR_PATH)
     return Response.json({ url: `${blob.url}?v=${Date.now()}` })
   } catch {
-    return Response.json({ url: '/default-qr.svg' })
+    return Response.json({ url: '/qrcode.jpg' })
   }
 }
